@@ -8,6 +8,7 @@
 #include<cstdlib>
 #include<cstring>
 #include<stack>
+#include<queue>
 using namespace std;
 
 const int maxn=1003, maxm=29;
@@ -18,11 +19,12 @@ double tod(const string&);//转成double
 void strToUpper(string&);//所有小写变大写
 bool Top();
 
-struct Cell{
+class Cell{
+public:
 	string content;
 	double value;
 	bool isValue;//是数值或者输出时是数值就为true
-	double evaluate();//递归下降法，返回表达式的结果
+	void evaluate();//递归下降法，返回表达式的结果
 } table[maxn][maxm];//存储excel
 
 //前向星图，用于拓扑排序
@@ -35,7 +37,20 @@ struct Edge{
 int head[maxn*maxm], cnt;//头指针和边的数量
 void addEdges(int, string);
 
+class EVA{
+public:
+	int Index;
+	string str;
+	double EA();
+	double EB();
+	double EC();
+	double ED();
+	double EE();
+	double EF();
+};
+
 int inDegree[maxn*maxm];
+queue<int> qe;//记录表达式的拓扑序
 
 int main(){
 //	ios::sync_with_stdio(false);
@@ -43,13 +58,21 @@ int main(){
 	cin >>n >>m; getchar(); getchar();//\r\n
 	for(int i = 1; i<=n; i++){
 		string s; getline(cin, s);
-		s.erase(s.length()-1, 1);//去掉windows多出的\r换行符
+		s.erase(s.length()-1, 1);//去掉windows多出的\r回车符
 		istringstream strin(s);
 		int x = 1;
-		while(getline(strin, table[i][x++].content,','));
+		while(getline(strin, table[i][x++].content,',')){//公式中可能含逗号，要合并
+			Cell &d = table[i][x-1];
+			if(d.content[0]!='=') { continue;}
+			string s = d.content;
+			while(s[s.length()-1]!=')'){
+				getline(strin, s, ',');
+				d.content+="," + s;
+			}
+		}
 	}
-//test input
-cout <<"test input---->" <<endl;
+	//test input
+	cout <<"test input---->" <<endl;
 	for(int i = 1; i<=n; i++){
 		for(int j = 1;j<=m; j++){
 			cout <<table[i][j].content <<" ";
@@ -80,8 +103,8 @@ cout <<"test input---->" <<endl;
 			head[edges[i].from] = i;
 		}
 	}
-//test graph
-cout <<"test graph----->" <<endl;
+	//test graph
+	cout <<"test graph----->" <<endl;
 	for(int i=1; i<=n*m; i++){
 		cout <<i<<":";
 		for(int j=head[i]; edges[j].from ==i && j<=n*m; j++){
@@ -89,9 +112,9 @@ cout <<"test graph----->" <<endl;
 		}
 		cout <<endl;
 	}
-//test top
+	//test top
 /*
-cout <<"test Top()----->" <<endl;
+	cout <<"test Top()----->" <<endl;
 	if(Top()) cout << "YES" <<endl;
 	else cout <<"ERROR!" << endl;
 */
@@ -99,8 +122,16 @@ cout <<"test Top()----->" <<endl;
 		cout <<"error!" <<endl;
 		return 0;
 	}
+
+	//evaluate
+	while(!qe.empty()){
+		int z = qe.front(); qe.pop();
+		Cell &x = table[(z-1)/m+1][(z-1)%m+1];
+		x.evaluate();
+	}
+
 	//output
-cout <<"test output----->" <<endl;
+	cout <<"test output----->" <<endl;
 	for(int i = 1; i<=n; i++){
 		for(int j = 1;j<=m; j++){
 			Cell &x = table[i][j];//make a alias
@@ -146,7 +177,6 @@ void addEdges(int f, string str){
 				while(i<str.length()-1 && isdigit(str[i+1])){
 					x2=x2*10+(str[++i]-'0');
 				}
-			cout <<x1 <<" "<<y1 <<" " <<x2 <<" " <<y2 <<endl;
 				if(x1>x2) swap(x1,x2);
 				if(y1>y2) swap(y1,y2);
 				for(int j=x1; j<=x2; j++){
@@ -177,6 +207,7 @@ bool Top(){
 	int k=n*m;
 	while(!sk.empty()){
 		int p = sk.top(); sk.pop(); k--;
+		if(table[(p-1)/m+1][(p-1)%m+1].content[0] == '=') qe.push(p);//记录表达式计算顺序
 		if(head[p]==-1) continue;//出度为0,跳过
 
 		for(int i=head[p]; edges[i].from == p && i<cnt; i++){
@@ -187,4 +218,319 @@ bool Top(){
 	return k==0?true:false;
 }
 
-double Cell::evaluate(){return 1;}
+double SUM(string s){
+	double ans=0;
+	for(int i=0; i<s.length()-1; i++){
+		int x1=0,y1=0,x2=0,y2=0;
+		if(isalpha(s[i]) && isdigit(s[i+1])){
+			y1 = s[i]-64, x1=0;
+			while(i<s.length()-1 && isdigit(s[i+1])){
+				x1=x1*10+(s[++i]-'0');
+			}
+
+			if(i<s.length()-1 &&  s[i+1] == ':'){
+				i+=2;//a1:b1
+				y2 = s[i]-64, x2=0;
+				while(i<s.length()-1 && isdigit(s[i+1])){
+					x2=x2*10+(s[++i]-'0');
+				}
+				if(x1>x2) swap(x1,x2);
+				if(y1>y2) swap(y1,y2);
+				for(int j=x1; j<=x2; j++){
+					for(int k=y1;k<=y2;k++){
+						ans+=table[j][k].value;
+					}
+				}
+			}else
+				ans+=table[x1][y1].value;
+		}
+	}
+	return ans;
+}
+
+double AVG(string s){
+	double ans=0; int xcount=0;
+	for(int i=0; i<s.length()-1; i++){
+		int x1=0,y1=0,x2=0,y2=0;
+		if(isalpha(s[i]) && isdigit(s[i+1])){
+			y1 = s[i]-64, x1=0;
+			while(i<s.length()-1 && isdigit(s[i+1])){
+				x1=x1*10+(s[++i]-'0');
+			}
+
+			if(i<s.length()-1 &&  s[i+1] == ':'){
+				i+=2;//a1:b1
+				y2 = s[i]-64, x2=0;
+				while(i<s.length()-1 && isdigit(s[i+1])){
+					x2=x2*10+(s[++i]-'0');
+				}
+				if(x1>x2) swap(x1,x2);
+				if(y1>y2) swap(y1,y2);
+				for(int j=x1; j<=x2; j++){
+					for(int k=y1;k<=y2;k++){
+						ans+=table[j][k].value;
+						xcount++;
+					}
+				}
+			}else
+				ans+=table[x1][y1].value, xcount++;
+		}
+	}
+	return ans/xcount;
+}
+
+double MAX(string s){
+	double ans=1e-308;
+	for(int i=0; i<s.length()-1; i++){
+		int x1=0,y1=0,x2=0,y2=0;
+		if(isalpha(s[i]) && isdigit(s[i+1])){
+			y1 = s[i]-64, x1=0;
+			while(i<s.length()-1 && isdigit(s[i+1])){
+				x1=x1*10+(s[++i]-'0');
+			}
+
+			if(i<s.length()-1 &&  s[i+1] == ':'){
+				i+=2;//a1:b1
+				y2 = s[i]-64, x2=0;
+				while(i<s.length()-1 && isdigit(s[i+1])){
+					x2=x2*10+(s[++i]-'0');
+				}
+				if(x1>x2) swap(x1,x2);
+				if(y1>y2) swap(y1,y2);
+				for(int j=x1; j<=x2; j++){
+					for(int k=y1;k<=y2;k++){
+						ans = max(ans, table[j][k].value);
+					}
+				}
+			}else
+				ans = max(ans, table[x1][y1].value);
+		}
+	}
+	return ans;
+}
+
+double MIN(string s){
+	double ans=1e308;
+	for(int i=0; i<s.length()-1; i++){
+		int x1=0,y1=0,x2=0,y2=0;
+		if(isalpha(s[i]) && isdigit(s[i+1])){
+			y1 = s[i]-64, x1=0;
+			while(i<s.length()-1 && isdigit(s[i+1])){
+				x1=x1*10+(s[++i]-'0');
+			}
+
+			if(i<s.length()-1 &&  s[i+1] == ':'){
+				i+=2;//a1:b1
+				y2 = s[i]-64, x2=0;
+				while(i<s.length()-1 && isdigit(s[i+1])){
+					x2=x2*10+(s[++i]-'0');
+				}
+				if(x1>x2) swap(x1,x2);
+				if(y1>y2) swap(y1,y2);
+				for(int j=x1; j<=x2; j++){
+					for(int k=y1;k<=y2;k++){
+						ans = min(ans, table[j][k].value);
+					}
+				}
+			}else
+				ans = min(ans, table[x1][y1].value);
+		}
+	}
+	return ans;
+}
+
+
+double EVA::EA(){
+	double a, b;
+	a=EB();
+
+	while(str[Index] == '+' || str[Index]=='-'){
+		char op=str[Index++];
+
+		b=EB();
+		switch(op){
+			case '+':
+				a+=b;
+				break;
+			case '-':
+				a-=b;
+				break;
+			default:
+				break;
+		}
+	}
+	if(str[Index]==')') Index++;
+	return a;
+}
+
+double EVA::EB(){
+	double a, b;
+	a = EC();
+
+	while(str[Index]=='*' || str[Index]=='/'){
+		char op=str[Index++];
+		
+		b=EC();
+		switch(op){
+			case '*':
+				a*=b;
+				break;
+			case '/':
+				a/=b;
+				break;
+			default:
+				break;
+		}
+	}
+	return a;
+}
+
+double EVA::EC(){
+	double a, b;
+	a = ED();
+
+	while(str[Index]=='%'){
+		Index++;
+		b=ED();
+		int c = a, d = b;
+		a=double(c%d);
+	}
+	return a;
+}
+
+double EVA::ED(){
+	double a, b;
+	a=EE();
+	while(str[Index]=='^'){
+		Index++;
+		b=EE();
+		a = pow(a, b);
+	}
+	return a;
+}
+
+double EVA::EE(){
+	int x=0;
+	while(str[Index]=='-'){
+		 x++;Index++;
+	}
+	if(x&1) return EF()*-1.0;
+	else return EF();
+}
+
+double EVA::EF(){
+	if(str[Index]=='('){
+		Index++;
+		return EA();
+	}
+	char c=str[Index];
+	switch(c){
+		case 'A':
+			if(str[Index+1]=='C'){
+				Index+=5;
+				return acos(EA());
+			}
+			else if(str[Index+1]=='S'){
+				Index+=5;
+				return asin(EA());
+			}
+			else if(str[Index+1]=='T'){
+				Index+=5;
+				return atan(EA());
+			}
+			else if(str[Index+1]=='V'){//sum
+				int p = Index+4;
+				int loc = str.find(')', Index);
+				Index = loc+1;
+				return AVG(str.substr(p, loc-p));
+			}
+		case 'C':
+			if(str[Index+3]=='H'){
+				Index+=5;
+				return cosh(EA());
+			}
+			else {
+				Index+=4;
+				return cos(EA());
+			}
+		case 'E':
+			Index+=4;
+			return exp(EA());
+		case 'L':
+			if(str[Index+3]=='1'){
+				Index+=6;
+				return log10(EA());
+			}
+			else {
+				Index+=4;
+				return log(EA());
+			}
+		case 'M':
+			if(str[Index+1]=='A'){//MAX
+				int p = Index+4;
+				int loc = str.find(')', Index);
+				Index = loc+1;
+				return MAX(str.substr(p, loc-p));
+			}
+			else{//MIN
+				int p = Index+4;
+				int loc = str.find(')', Index);
+				Index = loc+1;
+				return MAX(str.substr(p, loc-p));
+			}
+		case 'P':
+			Index+=6;
+			return pow(10, EA());
+		case 'S':
+			if(str[Index+1]=='I'){
+				if(str[Index+3]=='H'){
+					Index+=5;
+					return sinh(EA());
+				}
+				else {
+					Index+=4;
+					return sin(EA());
+				}
+			}
+			else if(str[Index+1]=='U'){//sum
+				int p = Index+4;
+				int loc = str.find(')', Index);
+				Index = loc+1;
+				return SUM(str.substr(p, loc-p));
+			}
+			else{
+				if(str[Index+3]=='T'){
+					Index+=5;
+					return sqrt(EA());
+				}
+				else {
+					Index+=4;
+					return pow(EA(),2);
+				}
+			}
+		case 'T':
+			if(str[Index+3]=='H'){
+				Index+=4;
+				return tan(EA());
+			}
+			else {
+				Index+=5;
+				return tan(EA());
+			}
+		default:
+			break;
+	}
+
+	char *endptr;
+	const char *ss = str.c_str();
+	double a = strtod(ss+Index, &endptr);
+	Index = endptr - ss;
+	return a;
+}
+
+void Cell::evaluate(){
+	EVA e;
+	e.str = content.substr(1);
+	e.Index = 0;
+	value = e.EA();
+}
