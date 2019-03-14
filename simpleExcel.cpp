@@ -62,12 +62,12 @@ int main(){
 		istringstream strin(s);
 		int x = 1;
 		while(getline(strin, table[i][x++].content,',')){//公式中可能含逗号，要合并
-			Cell &d = table[i][x-1];
-			if(d.content[0]!='=') { continue;}
-			string s = d.content;
-			while(s[s.length()-1]!=')'){
-				getline(strin, s, ',');
-				d.content+="," + s;
+			Cell &cx = table[i][x-1];
+			if(cx.content != "" && cx.content[0]=='=' && cx.content.find('(')!=-1){
+				while(cx.content[cx.content.length()-1] != ')'){
+					string cs; getline(strin, cs, ',');
+					cx.content += ","+cs;
+				}
 			}
 		}
 	}
@@ -104,6 +104,7 @@ int main(){
 		}
 	}
 	//test graph
+/*
 	cout <<"test graph----->" <<endl;
 	for(int i=1; i<=n*m; i++){
 		cout <<i<<":";
@@ -112,6 +113,7 @@ int main(){
 		}
 		cout <<endl;
 	}
+*/
 	//test top
 /*
 	cout <<"test Top()----->" <<endl;
@@ -426,103 +428,113 @@ double EVA::EF(){
 	char c=str[Index];
 	switch(c){
 		case 'A':
-			if(str[Index+1]=='C'){
+			if(str[Index+1]=='C'){//acos()
 				Index+=5;
 				return acos(EA());
 			}
-			else if(str[Index+1]=='S'){
+			else if(str[Index+1]=='S'){//asin()
 				Index+=5;
 				return asin(EA());
 			}
-			else if(str[Index+1]=='T'){
+			else if(str[Index+1]=='T'){//atan()
 				Index+=5;
 				return atan(EA());
-			}
-			else if(str[Index+1]=='V'){//sum
-				int p = Index+4;
-				int loc = str.find(')', Index);
+			}else if(str[Index+1]=='B'){//abs()
+				Index+=4;
+				return fabs(EA());
+			}else if(str[Index+1]=='V'){
+				int p=Index+4;
+				int loc=str.find(')', p);
 				Index = loc+1;
 				return AVG(str.substr(p, loc-p));
 			}
 		case 'C':
-			if(str[Index+3]=='H'){
+			if(str[Index+3]=='H'){//cosh()
 				Index+=5;
 				return cosh(EA());
 			}
-			else {
+			else if(str[Index+3]=='('){//cos()
 				Index+=4;
 				return cos(EA());
 			}
-		case 'E':
-			Index+=4;
-			return exp(EA());
+		case 'E'://exp()
+			if(str[Index+1]=='X'){
+				Index+=4;
+				return exp(EA());
+			}
 		case 'L':
-			if(str[Index+3]=='1'){
+			if(str[Index+3]=='1'){//log10()
 				Index+=6;
 				return log10(EA());
 			}
-			else {
+			else if(str[Index+3]=='G'){//log()
 				Index+=4;
 				return log(EA());
 			}
 		case 'M':
-			if(str[Index+1]=='A'){//MAX
-				int p = Index+4;
-				int loc = str.find(')', Index);
+			if(str[Index+1]=='A'){//max()
+				int p=Index+4;
+				int loc=str.find(')', p);
 				Index = loc+1;
 				return MAX(str.substr(p, loc-p));
 			}
-			else{//MIN
-				int p = Index+4;
-				int loc = str.find(')', Index);
+			else if(str[Index+1]=='I'){//min()
+				int p=Index+4;
+				int loc=str.find(')', p);
 				Index = loc+1;
-				return MAX(str.substr(p, loc-p));
+				return MIN(str.substr(p, loc-p));
 			}
-		case 'P':
-			Index+=6;
-			return pow(10, EA());
+		case 'P'://pow10()
+			if(str[Index+1]=='O'){
+				Index+=6;
+				return pow(10, EA());
+			}
 		case 'S':
 			if(str[Index+1]=='I'){
-				if(str[Index+3]=='H'){
+				if(str[Index+3]=='H'){//sinh()
 					Index+=5;
 					return sinh(EA());
 				}
-				else {
+				else if(str[Index+3]=='('){//sin()
 					Index+=4;
 					return sin(EA());
 				}
 			}
-			else if(str[Index+1]=='U'){//sum
-				int p = Index+4;
-				int loc = str.find(')', Index);
-				Index = loc+1;
-				return SUM(str.substr(p, loc-p));
-			}
-			else{
-				if(str[Index+3]=='T'){
+			else if(str[Index+1]=='Q'){
+				if(str[Index+3]=='T'){//sqrt()
 					Index+=5;
 					return sqrt(EA());
 				}
-				else {
+				else if(str[Index+1]=='Q'){//sqr()
 					Index+=4;
 					return pow(EA(),2);
 				}
+			}else if(str[Index+1]=='U'){//sum()
+				int p=Index+4;
+				int loc=str.find(')', p);
+				Index = loc+1;
+				return SUM(str.substr(p, loc-p));
 			}
 		case 'T':
-			if(str[Index+3]=='H'){
-				Index+=4;
-				return tan(EA());
-			}
-			else {
+			if(str[Index+3]=='H'){//tanh()
 				Index+=5;
+				return tanh(EA());
+			}
+			else if(str[Index+1]=='A'){//tan()
+				Index+=4;
 				return tan(EA());
 			}
 		default:
 			break;
 	}
-
 	char *endptr;
 	const char *ss = str.c_str();
+	if(isalpha(c)){
+		int y=c-64;
+		int x=strtol(ss+Index+1, &endptr, 10);
+		Index=endptr-ss;
+		return table[x][y].value;
+	}
 	double a = strtod(ss+Index, &endptr);
 	Index = endptr - ss;
 	return a;
