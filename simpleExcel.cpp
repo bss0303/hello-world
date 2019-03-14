@@ -51,40 +51,41 @@ public:
 
 int inDegree[maxn*maxm];
 queue<int> qe;//记录表达式的拓扑序
+int bcounts(string& str);
 
 int main(){
 //	ios::sync_with_stdio(false);
-	freopen("in.csv", "r", stdin);
-	cin >>n >>m; getchar(); getchar();//\r\n
+	cin >>n >>m; getchar(); //getchar();//\r\n
 	for(int i = 1; i<=n; i++){
-		string s; getline(cin, s);
-		s.erase(s.length()-1, 1);//去掉windows多出的\r回车符
+		string s; getline(cin, s, '\n');// getchar();
+		//s.erase(s.length()-1, 1);//去掉windows多出的\r回车符
 		istringstream strin(s);
 		int x = 1;
 		while(getline(strin, table[i][x++].content,',')){//公式中可能含逗号，要合并
 			Cell &cx = table[i][x-1];
-			if(cx.content != "" && cx.content[0]=='=' && cx.content.find('(')!=-1){
-				while(cx.content[cx.content.length()-1] != ')'){
-					string cs; getline(strin, cs, ',');
-					cx.content += ","+cs;
-				}
+			int z = bcounts(cx.content);
+			while(z!=0){
+				string cs; getline(strin, cs, ',');
+				z+=bcounts(cs);
+				cx.content += ","+cs;
 			}
 		}
 	}
 	//test input
+/*
 	cout <<"test input---->" <<endl;
 	for(int i = 1; i<=n; i++){
 		for(int j = 1;j<=m; j++){
-			cout <<table[i][j].content <<" ";
+			cout <<table[i][j].content<<" ";
 		}
 		cout <<endl;
 	}
-
+*/
 	//在判断类型的同时，建图
 	for(int i=1; i<=n; i++){
 		for(int j=1; j<=m; j++){
 			Cell &x = table[i][j];
-			if(x.content == "") x.content="0";//1.处理空白符 
+			if(x.content == "") x.isValue=true;//1.处理空白符 
 			else if(x.content[0] == '='){//2.处理函数
 				x.isValue = true;
 				strToUpper(x.content);//都变成大写
@@ -133,13 +134,13 @@ int main(){
 	}
 
 	//output
-	cout <<"test output----->" <<endl;
+	//cout <<"test output----->" <<endl;
 	for(int i = 1; i<=n; i++){
 		for(int j = 1;j<=m; j++){
 			Cell &x = table[i][j];//make a alias
 			if(x.isValue) printf("%.2lf", x.value);
 			else cout <<x.content;
-			if(j<m) printf(",");
+			printf(" ");
 		}
 		cout <<endl;
 	}
@@ -540,6 +541,14 @@ double EVA::EF(){
 	return a;
 }
 
+int bcounts(string& str){
+	int x = 0;
+	for(int i = 0; i<str.length(); i++){
+		if(str[i]=='(') x++;
+		else if(str[i]==')') x--;
+	}
+	return x;
+}
 void Cell::evaluate(){
 	EVA e;
 	e.str = content.substr(1);
